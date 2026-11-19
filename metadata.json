@@ -1,0 +1,6 @@
+{
+  "name": "DinoLab Q-Learning",
+  "description": "Aplicação didática interativa em HTML, CSS e JS para o ensino de aprendizagem por reforço com Q-Learning baseada no jogo do dinossauro, com estados e memória em tempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

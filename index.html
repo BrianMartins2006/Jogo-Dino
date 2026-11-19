@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DinoLab Q-Learning — Aprendizagem por Reforço Interativa</title>
+    <meta
+      name="description"
+      content="Aplicação didática interativa em HTML, CSS e JS para o ensino de aprendizagem por reforço com Q-Learning baseada no jogo do dinossauro, com estados e memória em tempo real."
+    />
+    <meta property="og:title" content="DinoLab Q-Learning — Aprendizagem por Reforço Interativa" />
+    <meta
+      property="og:description"
+      content="Observe um agente Q-Learning aprender a correr e saltar obstáculos em tempo real, com discretização de estados, equação de Bellman ao vivo e visualização completa da Tabela Q."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="#simulador" class="brand">DinoLab Q-Learning</a>
+
+        <nav class="topnav" aria-label="Navegação principal">
+          <a href="#simulador" class="nav-link">Simulador</a>
+          <a href="#estados" class="nav-link">Estados</a>
+          <a href="#memoria-q" class="nav-link">Memória Q</a>
+          <a href="#equacao" class="nav-link">Equação</a>
+        </nav>
+
+        <div class="topbar-action">
+          <button type="button" id="btn-fast-train" class="btn btn-primary">
+            Treinar +50 Episódios
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-container">
+      <!-- Seção Principal: Simulador + Painel de Controle -->
+      <section id="simulador" class="sandbox-section">
+        <div class="section-intro">
+          <div>
+            <h1 class="page-title">Aprendizagem por Reforço no Jogo do Dinossauro</h1>
+            <p class="page-subtitle">
+              O agente possui apenas duas ações possíveis — <strong>Correr</strong> ou
+              <strong>Saltar</strong> — e aprende por tentativa e erro a evitar obstáculos usando
+              uma Tabela Q atualizada em tempo real.
+            </p>
+          </div>
+          <div class="meta-inline">
+            <span>Algoritmo: Q-Learning Tabular</span>
+            <span aria-hidden="true">·</span>
+            <span>Espaço: 16 Estados × 2 Ações</span>
+            <span aria-hidden="true">·</span>
+            <span>32 Valores Q</span>
+          </div>
+        </div>
+
+        <div class="sandbox-grid">
+          <!-- Zona Esquerda: Palco Interativo -->
+          <div class="stage-column">
+            <div class="panel canvas-panel">
+              <div class="panel-header">
+                <div class="panel-title-group">
+                  <h2 class="panel-title">Ambiente de Simulação</h2>
+                  <span class="panel-meta" id="stage-status-text">
+                    Agente IA em execução · Sensores visuais ativos
+                  </span>
+                </div>
+                <div class="sensor-legend" aria-label="Legenda de ações">
+                  <span class="legend-item legend-run">■ Correr</span>
+                  <span class="legend-item legend-jump">▲ Saltar</span>
+                </div>
+              </div>
+
+              <div class="canvas-wrapper">
+                <canvas
+                  id="dino-canvas"
+                  width="760"
+                  height="280"
+                  aria-label="Simulação do jogo do dinossauro com sensores de distância e estado atual"
+                ></canvas>
+                <div id="manual-hint" class="manual-hint hidden">
+                  Modo Manual ativo — pressione <kbd>Espaço</kbd>, <kbd>↑</kbd> ou clique na tela para saltar
+                </div>
+              </div>
+
+              <!-- Barra de Controles de Reprodução -->
+              <div class="controls-bar">
+                <div class="controls-group">
+                  <button type="button" id="btn-play-pause" class="btn btn-primary">
+                    Pausar
+                  </button>
+                  <button type="button" id="btn-step" class="btn btn-secondary">
+                    Passo Único
+                  </button>
+                  <button type="button" id="btn-reset-q" class="btn btn-ghost">
+                    Zerar Memória Q
+                  </button>
+                </div>
+
+                <div class="controls-group">
+                  <span class="control-label">Velocidade</span>
+                  <div class="segmented" role="group" aria-label="Velocidade da simulação">
+                    <button type="button" class="seg-btn active" data-speed="1">1×</button>
+                    <button type="button" class="seg-btn" data-speed="5">5×</button>
+                    <button type="button" class="seg-btn" data-speed="20">20×</button>
+                    <button type="button" class="seg-btn" data-speed="100">100×</button>
+                  </div>
+                </div>
+
+                <div class="controls-group">
+                  <span class="control-label">Controle</span>
+                  <div class="segmented" role="group" aria-label="Modo de controle">
+                    <button type="button" class="seg-btn active" data-mode="ai">Agente IA</button>
+                    <button type="button" class="seg-btn" data-mode="manual">Manual</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Faixa de KPIs em Tempo Real -->
+            <div class="kpi-strip" aria-label="Métricas do treinamento">
+              <div class="kpi-card">
+                <span class="kpi-label">Episódio Atual</span>
+                <span class="kpi-value tabular" id="kpi-episode">1</span>
+                <span class="kpi-sub tabular" id="kpi-steps">0 decisões tomadas</span>
+              </div>
+
+              <div class="kpi-card">
+                <span class="kpi-label">Obstáculos / Recorde</span>
+                <span class="kpi-value tabular" id="kpi-score">0 / 0</span>
+                <span class="kpi-sub tabular" id="kpi-avg-score">Média (10 ep.): 0.0</span>
+              </div>
+
+              <div class="kpi-card">
+                <span class="kpi-label">Exploração (ε)</span>
+                <span class="kpi-value tabular" id="kpi-epsilon">65.0%</span>
+                <span class="kpi-sub" id="kpi-decision-mode">Modo: Aguardando</span>
+              </div>
+
+              <div class="kpi-card">
+                <span class="kpi-label">Última Recompensa (R)</span>
+                <span class="kpi-value tabular" id="kpi-reward">0.0</span>
+                <span class="kpi-sub" id="kpi-reward-reason">Iniciando episódio</span>
+              </div>
+            </div>
+
+            <!-- Gráfico de Evolução de Aprendizagem -->
+            <div class="panel chart-panel">
+              <div class="panel-header">
+                <div class="panel-title-group">
+                  <h2 class="panel-title">Curva de Aprendizagem por Episódio</h2>
+                  <span class="panel-meta">
+                    Obstáculos superados por episódio e média móvel (últimos 10)
+                  </span>
+                </div>
+                <div class="chart-legend">
+                  <span class="legend-item legend-score">● Pontuação</span>
+                  <span class="legend-item legend-avg">— Média Móvel</span>
+                </div>
+              </div>
+              <div class="chart-wrapper">
+                <canvas
+                  id="learning-chart"
+                  width="760"
+                  height="160"
+                  aria-label="Gráfico de obstáculos superados por episódio"
+                ></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zona Direita: Hiperparâmetros & Equação de Bellman ao Vivo -->
+          <aside class="deck-column">
+            <!-- Painel de Hiperparâmetros -->
+            <div class="panel deck-panel">
+              <div class="panel-header">
+                <div class="panel-title-group">
+                  <h2 class="panel-title">Parâmetros do Q-Learning</h2>
+                  <span class="panel-meta">Ajuste o ritmo de aprendizagem em tempo real</span>
+                </div>
+              </div>
+
+              <div class="sliders-list">
+                <div class="slider-item">
+                  <div class="slider-top">
+                    <label for="slider-alpha" class="slider-label">
+                      Taxa de Aprendizagem (<span class="math-var">α</span>)
+                    </label>
+                    <span class="slider-val tabular" id="val-alpha">0.25</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-alpha"
+                    min="0.05"
+                    max="0.80"
+                    step="0.05"
+                    value="0.25"
+                  />
+                  <p class="slider-help">
+                    Define o peso de cada nova experiência ao substituir o valor Q antigo.
+                  </p>
+                </div>
+
+                <div class="slider-item">
+                  <div class="slider-top">
+                    <label for="slider-gamma" class="slider-label">
+                      Fator de Desconto (<span class="math-var">γ</span>)
+                    </label>
+                    <span class="slider-val tabular" id="val-gamma">0.90</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-gamma"
+                    min="0.50"
+                    max="0.99"
+                    step="0.01"
+                    value="0.90"
+                  />
+                  <p class="slider-help">
+                    Quanto o agente valoriza recompensas futuras em relação ao ganho imediato.
+                  </p>
+                </div>
+
+                <div class="slider-item">
+                  <div class="slider-top">
+                    <label for="slider-epsilon" class="slider-label">
+                      Exploração Aleatória (<span class="math-var">ε</span>)
+                    </label>
+                    <span class="slider-val tabular" id="val-epsilon">0.65</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-epsilon"
+                    min="0.00"
+                    max="1.00"
+                    step="0.01"
+                    value="0.65"
+                  />
+                  <div class="checkbox-row">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="chk-auto-decay" checked />
+                      <span>Decaimento automático de ε a cada episódio (mín. 0.03)</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Inspetor Ao Vivo da Equação de Bellman -->
+            <div class="panel deck-panel">
+              <div class="panel-header">
+                <div class="panel-title-group">
+                  <h2 class="panel-title">Última Atualização na Memória</h2>
+                  <span class="panel-meta">Equação de Bellman aplicada em tempo real</span>
+                </div>
+              </div>
+
+              <div class="formula-box">
+                <code>
+                  Q(s, a) ← Q(s, a) + α · [ R + γ · máx Q(s', a') − Q(s, a) ]
+                </code>
+              </div>
+
+              <div class="bellman-grid" id="bellman-inspector">
+                <div class="bellman-row">
+                  <span class="b-key">Estado anterior (<span class="math-var">s</span>)</span>
+                  <span class="b-val tabular" id="b-state">—</span>
+                </div>
+                <div class="bellman-row">
+                  <span class="b-key">Ação escolhida (<span class="math-var">a</span>)</span>
+                  <span class="b-val" id="b-action">—</span>
+                </div>
+                <div class="bellman-row">
+                  <span class="b-key">Próximo estado (<span class="math-var">s'</span>)</span>
+                  <span class="b-val tabular" id="b-next-state">—</span>
+                </div>
+
+                <div class="bellman-divider"></div>
+
+                <div class="bellman-math-row">
+                  <div class="math-cell">
+                    <span class="math-cell-label">Q antigo</span>
+                    <span class="math-cell-value tabular" id="b-old-q">0.00</span>
+                  </div>
+                  <div class="math-cell">
+                    <span class="math-cell-label">Recompensa (R)</span>
+                    <span class="math-cell-value tabular" id="b-reward">0.0</span>
+                  </div>
+                  <div class="math-cell">
+                    <span class="math-cell-label">máx Q(s')</span>
+                    <span class="math-cell-value tabular" id="b-max-next">0.00</span>
+                  </div>
+                </div>
+
+                <div class="bellman-result" id="b-result-box">
+                  <div>
+                    <span class="result-label">Novo valor armazenado Q(s, a)</span>
+                    <span class="result-calc tabular" id="b-calc-line">
+                      Aguardando primeira transição...
+                    </span>
+                  </div>
+                  <div class="result-numbers">
+                    <span class="result-new tabular" id="b-new-q">0.00</span>
+                    <span class="result-delta tabular" id="b-delta">Δ 0.00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Seção 01: Apresentação dos Estados -->
+      <section id="estados" class="content-section">
+        <div class="section-header">
+          <h2 class="section-title">01. Apresentação dos Estados — Como o Dinossauro Enxerga o Ambiente</h2>
+          <p class="section-desc">
+            Em vez de processar milhares de pixels da tela, o Q-Learning tabular agrupa as leituras
+            contínuas do jogo em <strong>3 variáveis discretas</strong>. A combinação delas gera
+            exatamente <strong>16 estados possíveis</strong> (4 × 2 × 2). O destaque abaixo acompanha
+            o estado exato detectado neste instante.
+          </p>
+        </div>
+
+        <div class="live-state-banner" id="live-state-banner">
+          <div class="live-state-part">
+            <span class="live-label">Estado Ativo Agora</span>
+            <strong class="live-code tabular" id="live-state-id">S03</strong>
+          </div>
+          <div class="live-state-part">
+            <span class="live-label">Leitura Bruta (Sensores)</span>
+            <span class="live-raw tabular" id="live-sensor-raw">
+              Distância: — px · Obstáculo: — · Velocidade: — px/frame
+            </span>
+          </div>
+          <div class="live-state-part">
+            <span class="live-label">Ação Recomendada (Máx Q)</span>
+            <strong class="live-action" id="live-best-action">—</strong>
+          </div>
+        </div>
+
+        <div class="states-dimensions-grid">
+          <!-- Dimensão 1: Distância -->
+          <div class="panel dimension-card">
+            <div class="dim-header">
+              <h3 class="dim-title">Variável 1: Distância até o Obstáculo</h3>
+              <span class="dim-count">4 faixas</span>
+            </div>
+            <p class="dim-desc">
+              Medida em pixels da frente do dinossauro até a borda esquerda do próximo cacto.
+            </p>
+            <ul class="bucket-list" id="buckets-distance">
+              <li class="bucket-item" data-dist="0">
+                <span class="bucket-name">Muito Perto</span>
+                <span class="bucket-range tabular">0 – 80 px</span>
+              </li>
+              <li class="bucket-item" data-dist="1">
+                <span class="bucket-name">Perto</span>
+                <span class="bucket-range tabular">81 – 155 px</span>
+              </li>
+              <li class="bucket-item" data-dist="2">
+                <span class="bucket-name">Médio</span>
+                <span class="bucket-range tabular">156 – 245 px</span>
+              </li>
+              <li class="bucket-item" data-dist="3">
+                <span class="bucket-name">Longe</span>
+                <span class="bucket-range tabular">&gt; 245 px</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Dimensão 2: Obstáculo -->
+          <div class="panel dimension-card">
+            <div class="dim-header">
+              <h3 class="dim-title">Variável 2: Porte do Obstáculo</h3>
+              <span class="dim-count">2 tipos</span>
+            </div>
+            <p class="dim-desc">
+              Classifica a altura e largura do próximo obstáculo na pista.
+            </p>
+            <ul class="bucket-list" id="buckets-obstacle">
+              <li class="bucket-item" data-obs="0">
+                <span class="bucket-name">Baixo (Cacto Simples)</span>
+                <span class="bucket-range tabular">Alt. 34 px · Larg. 22 px</span>
+              </li>
+              <li class="bucket-item" data-obs="1">
+                <span class="bucket-name">Alto (Cacto Alto / Duplo)</span>
+                <span class="bucket-range tabular">Alt. 52 px · Larg. 38 px</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Dimensão 3: Velocidade -->
+          <div class="panel dimension-card">
+            <div class="dim-header">
+              <h3 class="dim-title">Variável 3: Velocidade da Corrida</h3>
+              <span class="dim-count">2 níveis</span>
+            </div>
+            <p class="dim-desc">
+              A corrida acelera conforme a pontuação sobe, exigindo saltos mais antecipados.
+            </p>
+            <ul class="bucket-list" id="buckets-speed">
+              <li class="bucket-item" data-spd="0">
+                <span class="bucket-name">Normal</span>
+                <span class="bucket-range tabular">&lt; 7.8 px/frame</span>
+              </li>
+              <li class="bucket-item" data-spd="1">
+                <span class="bucket-name">Rápida</span>
+                <span class="bucket-range tabular">≥ 7.8 px/frame</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seção 02: Memória do Agente em Tempo Real -->
+      <section id="memoria-q" class="content-section">
+        <div class="section-header">
+          <h2 class="section-title">02. Memória do Agente em Tempo Real — Tabela Q e Matriz de Política</h2>
+          <p class="section-desc">
+            A memória do agente é uma matriz numérica onde cada célula guarda a expectativa de
+            recompensa acumulada para o par <strong>(Estado, Ação)</strong>. Valores em verde
+            piscam quando aumentam; valores em vermelho piscam quando sofrem penalidade.
+          </p>
+        </div>
+
+        <!-- Matriz Visual 4x4 (Cérebro do Agente) -->
+        <div class="panel matrix-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <h3 class="panel-title">Mapa Cognitivo da Memória (16 Estados)</h3>
+              <span class="panel-meta">
+                Cada bloco exibe a ação vencedora e os valores Q(Correr) vs Q(Saltar) em tempo real
+              </span>
+            </div>
+            <div class="matrix-legend">
+              <span class="legend-item legend-run">■ Prefere Correr</span>
+              <span class="legend-item legend-jump">▲ Prefere Saltar</span>
+              <span class="legend-item legend-neutral">○ Neutro (0.00)</span>
+            </div>
+          </div>
+
+          <div class="matrix-scroll">
+            <div class="q-matrix" id="q-matrix" aria-label="Matriz visual da memória Q-Learning">
+              <!-- Preenchido via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela Q Completa e Detalhada -->
+        <div class="panel table-panel">
+          <div class="panel-header table-controls-header">
+            <div class="panel-title-group">
+              <h3 class="panel-title">Tabela Q Completa (Valores Armazenados)</h3>
+              <span class="panel-meta">
+                Clique em qualquer linha para inspecionar a tomada de decisão naquele estado
+              </span>
+            </div>
+
+            <div class="table-filters">
+              <div class="segmented" role="group" aria-label="Filtrar por velocidade">
+                <button type="button" class="seg-btn active" data-filter-speed="all">
+                  Todas Vel.
+                </button>
+                <button type="button" class="seg-btn" data-filter-speed="0">
+                  Vel. Normal
+                </button>
+                <button type="button" class="seg-btn" data-filter-speed="1">
+                  Vel. Rápida
+                </button>
+              </div>
+              <div class="segmented" role="group" aria-label="Filtrar por obstáculo">
+                <button type="button" class="seg-btn active" data-filter-obs="all">
+                  Todos Obs.
+                </button>
+                <button type="button" class="seg-btn" data-filter-obs="0">
+                  Baixo
+                </button>
+                <button type="button" class="seg-btn" data-filter-obs="1">
+                  Alto
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inspetor de Linha Selecionada -->
+          <div class="row-inspector" id="row-inspector">
+            <span class="inspector-title" id="inspector-title">
+              Inspetor de Estado: selecione uma linha na tabela abaixo
+            </span>
+            <span class="inspector-detail tabular" id="inspector-detail">
+              Compare Q(s, Correr) e Q(s, Saltar) para entender por que o agente escolhe uma ação.
+            </span>
+          </div>
+
+          <div class="table-scroll">
+            <table class="q-table" aria-label="Tabela Q-Learning em tempo real">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Distância</th>
+                  <th>Obstáculo</th>
+                  <th>Velocidade</th>
+                  <th class="num-col">Q(s, Correr)</th>
+                  <th class="num-col">Q(s, Saltar)</th>
+                  <th>Vantagem Relativa</th>
+                  <th>Política Aprendida</th>
+                  <th class="num-col">Visitas</th>
+                </tr>
+              </thead>
+              <tbody id="q-table-body">
+                <!-- Linhas geradas dinamicamente via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seção 03: Ciclo RL e Recompensas -->
+      <section id="equacao" class="content-section">
+        <div class="section-header">
+          <h2 class="section-title">03. Ciclo de Aprendizagem por Reforço e Recompensas</h2>
+          <p class="section-desc">
+            O agente não recebe um manual de regras. Ele descobre sozinho quando saltar observando
+            as recompensas devolvidas pelo ambiente após cada transição.
+          </p>
+        </div>
+
+        <div class="cycle-grid">
+          <div class="panel cycle-card">
+            <span class="cycle-step">Passo 1</span>
+            <h3 class="cycle-title">Observar Estado (s)</h3>
+            <p class="cycle-text">
+              Enquanto está no chão, o dinossauro lê a distância ao cacto, sua altura e a
+              velocidade atual, convertendo tudo em um dos 16 estados.
+            </p>
+          </div>
+          <div class="panel cycle-card">
+            <span class="cycle-step">Passo 2</span>
+            <h3 class="cycle-title">Escolher Ação (ε-greedy)</h3>
+            <p class="cycle-text">
+              Com probabilidade <strong>ε</strong>, testa uma ação aleatória para explorar. Caso
+              contrário, escolhe a ação com maior valor Q na memória.
+            </p>
+          </div>
+          <div class="panel cycle-card">
+            <span class="cycle-step">Passo 3</span>
+            <h3 class="cycle-title">Receber Recompensa (R)</h3>
+            <p class="cycle-text">
+              O ambiente devolve um sinal numérico positivo ao superar obstáculos ou negativo ao
+              colidir ou saltar sem necessidade.
+            </p>
+          </div>
+          <div class="panel cycle-card">
+            <span class="cycle-step">Passo 4</span>
+            <h3 class="cycle-title">Atualizar Tabela Q</h3>
+            <p class="cycle-text">
+              A equação de Bellman ajusta <strong>Q(s, a)</strong> combinando a recompensa imediata
+              com o melhor valor esperado no próximo estado <strong>s'</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="panel rewards-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <h3 class="panel-title">Função de Recompensa do Ambiente</h3>
+              <span class="panel-meta">Sinais utilizados para guiar o comportamento do dinossauro</span>
+            </div>
+          </div>
+          <div class="rewards-grid">
+            <div class="reward-item">
+              <span class="reward-val val-pos tabular">+15.0</span>
+              <div>
+                <strong class="reward-name">Superar obstáculo após saltar</strong>
+                <p class="reward-desc">
+                  Reforça positivamente o salto executado na distância e velocidade corretas.
+                </p>
+              </div>
+            </div>
+            <div class="reward-item">
+              <span class="reward-val val-pos tabular">+0.5</span>
+              <div>
+                <strong class="reward-name">Correr em segurança</strong>
+                <p class="reward-desc">
+                  Pequeno estímulo por avançar no chão sem colidir quando não é hora de saltar.
+                </p>
+              </div>
+            </div>
+            <div class="reward-item">
+              <span class="reward-val val-warn tabular">-3.0</span>
+              <div>
+                <strong class="reward-name">Salto desnecessário</strong>
+                <p class="reward-desc">
+                  Penalidade leve ao saltar longe demais sem ultrapassar nenhum obstáculo.
+                </p>
+              </div>
+            </div>
+            <div class="reward-item">
+              <span class="reward-val val-neg tabular">-100.0</span>
+              <div>
+                <strong class="reward-name">Colisão com obstáculo</strong>
+                <p class="reward-desc">
+                  Penalidade severa no estado terminal, reduzindo rapidamente ações que causam batida.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span>DinoLab Q-Learning · Laboratório Didático de Aprendizagem por Reforço</span>
+        <span>HTML5 Canvas · CSS3 · JavaScript Puro</span>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
