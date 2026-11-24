@@ -98,8 +98,9 @@ export class LearningChart {
 
     // Linha de Média Móvel (10 episódios)
     const movingAvg = windowSlice.map((_, idx) => {
-      const sliceStart = Math.max(0, idx - 9);
-      const sub = windowSlice.slice(sliceStart, idx + 1);
+      const episodeIndex = startEp - 1 + idx;
+      const sliceStart = Math.max(0, episodeIndex - 9);
+      const sub = scores.slice(sliceStart, episodeIndex + 1);
       return sub.reduce((a, b) => a + b, 0) / sub.length;
     });
 

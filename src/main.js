@@ -384,7 +384,7 @@ function updateBellmanInspector(info) {
   els.bAction.className =
     info.action === ACTION_JUMP ? 'b-val action-jump-text' : 'b-val action-run-text';
   els.bNextState.textContent = info.isTerminal
-    ? 'Estado Terminal (Colisão)'
+    ? `Estado terminal (${info.reason})`
     : `${sNext.code} (${sNext.distLabel} · ${sNext.obsLabel})`;
 
   els.bOldQ.textContent = info.oldQ.toFixed(2);
@@ -519,7 +519,7 @@ document.querySelectorAll('[data-mode]').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('[data-mode]').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
-    sim.mode = btn.dataset.mode;
+    sim.setMode(btn.dataset.mode);
     const isManual = sim.mode === 'manual';
     els.manualHint.classList.toggle('hidden', !isManual);
     els.stageStatusText.textContent = isManual
@@ -530,7 +530,7 @@ document.querySelectorAll('[data-mode]').forEach((btn) => {
 
 // Controles de Teclado & Clique no Canvas para Modo Manual
 window.addEventListener('keydown', (e) => {
-  if (sim.mode === 'manual' && (e.code === 'Space' || e.code === 'ArrowUp')) {
+  if (sim.mode === 'manual' && !e.repeat && !e.target.closest?.('button, input, select, textarea') && (e.code === 'Space' || e.code === 'ArrowUp')) {
     e.preventDefault();
     sim.queueManualJump();
   }
@@ -586,9 +586,16 @@ document.querySelectorAll('[data-filter-obs]').forEach((btn) => {
 });
 
 // Loop Principal de Animação (60 FPS)
-function loop() {
-  if (sim.running) {
+const frameInterval = 1000 / 60;
+let previousTime;
+let elapsed = 0;
+
+function loop(time) {
+  elapsed = sim.running ? elapsed + Math.min(time - (previousTime ?? time), 100) : 0;
+  previousTime = time;
+  while (elapsed >= frameInterval) {
     sim.tick();
+    elapsed -= frameInterval;
   }
   requestAnimationFrame(loop);
 }

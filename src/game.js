@@ -22,6 +22,7 @@ const GRAVITY = 0.72;
 const JUMP_VELOCITY = -13.2;
 const BASE_SPEED = 6.2;
 const MAX_SPEED = 10.2;
+const MAX_EPISODE_FRAMES = 2200;
 
 export class DinoSimulation {
   constructor(canvas, agent, callbacks = {}) {
@@ -73,6 +74,7 @@ export class DinoSimulation {
     this.lastReward = 0;
     this.lastRewardReason = 'Memória Q zerada';
     this.lastDecisionMode = '—';
+    this.lastAction = ACTION_RUN;
     this.floatingTexts = [];
     this.resetEpisode(true);
     this.onUpdate(this.getSnapshot());
@@ -106,6 +108,19 @@ export class DinoSimulation {
 
     const obs = this.observe();
     this.currentObservation = obs;
+  }
+
+  setMode(mode) {
+    if (this.mode === mode) return;
+    this.mode = mode;
+    this.lastAction = ACTION_RUN;
+    this.lastDecisionMode = '—';
+    this.lastReward = 0;
+    this.lastRewardReason = 'Iniciando episódio';
+    this.floatingTexts = [];
+    this.resetEpisode(true);
+    this.draw();
+    this.onUpdate(this.getSnapshot());
   }
 
   createObstacle(xPos) {
@@ -184,7 +199,8 @@ export class DinoSimulation {
     if (this.crashFreezeFrames > 0) {
       this.crashFreezeFrames -= 1;
       if (this.crashFreezeFrames === 0) {
-        this.finishEpisode();
+        this.finishEpisode(headless);
+        return { updatedQ: false, episodeEnded: true };
       }
       return { updatedQ: false, episodeEnded: false };
     }
@@ -294,6 +310,7 @@ export class DinoSimulation {
 
     // 4. Ciclo de Decisão e Atualização Q-Learning (apenas no chão)
     if (this.dino.onGround) {
+      const reachedLimit = this.mode === 'ai' && this.frameCount >= MAX_EPISODE_FRAMES;
       if (this.mode === 'ai') {
         if (this.pendingTransition) {
           const isJumpLanding = this.pendingTransition.action === ACTION_JUMP;
@@ -303,7 +320,8 @@ export class DinoSimulation {
 
           const shouldResolveRun =
             !isJumpLanding &&
-            (stateChanged ||
+            (reachedLimit ||
+              stateChanged ||
               this.pendingTransition.ticks >= 6 ||
               this.pendingTransition.clearedObstacle);
 
@@ -334,9 +352,9 @@ export class DinoSimulation {
               this.pendingTransition.stateId,
               this.pendingTransition.action,
               reward,
-              this.currentObservation.stateId,
-              false,
-              reason
+              reachedLimit ? null : this.currentObservation.stateId,
+              reachedLimit,
+              reachedLimit ? 'Limite do episódio' : reason
             );
             updatedQ = true;
             this.pendingTransition = null;
@@ -344,6 +362,11 @@ export class DinoSimulation {
               this.onBellmanUpdate(updateInfo);
             }
           }
+        }
+
+        if (reachedLimit) {
+          this.finishEpisode(headless);
+          return { updatedQ, episodeEnded: true };
         }
 
         // Se não há transição pendente, tomar nova decisão no estado atual
@@ -382,18 +405,15 @@ export class DinoSimulation {
   }
 
   finishEpisode(headless = false) {
-    if (this.score > this.bestScore) {
-      this.bestScore = this.score;
-    }
-    this.scoresHistory.push(this.score);
-
     if (this.mode === 'ai') {
+      this.bestScore = Math.max(this.bestScore, this.score);
+      this.scoresHistory.push(this.score);
       this.agent.decayEpsilon();
     }
 
-    this.resetEpisode(false);
+    this.resetEpisode(this.mode === 'manual');
 
-    if (!headless) {
+    if (!headless && this.mode === 'ai') {
       this.onEpisodeEnd(this.scoresHistory);
     }
   }
@@ -441,24 +461,15 @@ export class DinoSimulation {
 
   trainEpisodesBatch(count = 50) {
     const prevMode = this.mode;
-    this.mode = 'ai';
-    const maxFramesPerEpisode = 2200;
+    this.setMode('ai');
 
-    for (let e = 0; e < count; e++) {
-      let frames = 0;
-      let ended = false;
-      while (!ended && frames < maxFramesPerEpisode) {
-        const res = this.stepFrame(true);
-        ended = res.episodeEnded;
-        frames += 1;
-      }
-      if (!ended) {
-        // Episódio longo completado sem colisão
-        this.finishEpisode(true);
+    for (let episode = 0; episode < count; episode++) {
+      while (!this.stepFrame(true).episodeEnded) {
+        // O mesmo motor encerra o episódio por colisão ou pelo limite de quadros.
       }
     }
 
-    this.mode = prevMode;
+    this.setMode(prevMode);
     this.draw();
     if (this.agent.lastUpdate) {
       this.onBellmanUpdate(this.agent.lastUpdate);
@@ -471,9 +482,13 @@ export class DinoSimulation {
     if (!this.running) return;
     const steps = this.mode === 'manual' ? 1 : this.speedMultiplier;
     for (let i = 0; i < steps; i++) {
-      this.stepFrame(i < steps - 1);
+      const result = this.stepFrame(i < steps - 1);
+      if (result.episodeEnded && i < steps - 1) {
+        this.onEpisodeEnd(this.scoresHistory);
+      }
     }
     this.draw();
+    if (this.agent.lastUpdate) this.onBellmanUpdate(this.agent.lastUpdate);
     this.onUpdate(this.getSnapshot());
   }
 
