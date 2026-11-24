@@ -554,6 +554,8 @@ export class DinoSimulation {
     ctx.arc(590, 108, 34, 0, 2 * Math.PI);
     ctx.fill();
 
+    if (night) this.drawMindFlayer(ctx);
+
     ctx.fillStyle = night ? '#22132e' : '#794358';
     ctx.beginPath();
     ctx.moveTo(0, GROUND_Y);
@@ -588,10 +590,10 @@ export class DinoSimulation {
       ctx.fillRect(d.x, GROUND_Y + d.yOffset, d.w, 2);
     });
 
-    // 3. Obstáculos (Cactos)
+    // 3. Criaturas na pista
     const nextObs = this.currentObservation?.nextObstacle;
     this.obstacles.forEach((obs) => {
-      this.drawCactus(ctx, obs, obs === nextObs);
+      this.drawObstacle(ctx, obs, obs === nextObs);
     });
 
     // 4. Linha de sensor até o próximo obstáculo
@@ -648,7 +650,7 @@ export class DinoSimulation {
     this.drawCanvasHUD(ctx);
   }
 
-  drawCactus(ctx, obs, isNext) {
+  drawObstacle(ctx, obs, isNext) {
     const { x, y, width, height, type } = obs;
 
     if (isNext) {
@@ -660,49 +662,83 @@ export class DinoSimulation {
       ctx.restore();
     }
 
+    ctx.fillStyle = this.isNight ? '#ad466c' : '#4c253c';
     if (type === 2) {
-      const wingY = y + 8 + Math.sin(this.frameCount * 0.28) * 13;
-      ctx.fillStyle = this.isNight ? '#f274a6' : '#47213e';
+      const wing = Math.sin(this.frameCount * 0.3) * 14;
       ctx.beginPath();
-      ctx.moveTo(x, y + 6);
-      ctx.lineTo(x + 13, y + 2);
-      ctx.lineTo(x + 21, y + 8);
-      ctx.lineTo(x + 34, wingY);
-      ctx.lineTo(x + 30, y + 15);
-      ctx.lineTo(x + 14, y + 16);
+      ctx.moveTo(x, y + 8);
+      ctx.lineTo(x + 12, y + 5);
+      ctx.lineTo(x + 24, y - wing);
+      ctx.lineTo(x + width, y + 5);
+      ctx.lineTo(x + 27, y + 8);
+      ctx.lineTo(x + 32, y + 17);
+      ctx.lineTo(x + 19, y + 12);
+      ctx.lineTo(x + 8, y + 15);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = this.isNight ? '#36102e' : '#ffeabf';
-      ctx.fillRect(x + 10, y + 6, 3, 3);
       return;
     }
 
-    ctx.fillStyle = type === 0 ? '#0f766e' : '#065f46';
-
+    const center = x + width / 2;
+    const headY = y + (type === 0 ? 11 : 13);
+    ctx.beginPath();
     if (type === 0) {
-      // Cacto simples (Baixo)
-      const trunkW = 10;
-      const trunkX = x + (width - trunkW) / 2;
-      ctx.beginPath();
-      ctx.roundRect(trunkX, y, trunkW, height, 4);
-      ctx.roundRect(x, y + 10, 8, 5, 2);
-      ctx.roundRect(x, y + 6, 5, 9, 2);
-      ctx.roundRect(x + width - 8, y + 14, 8, 5, 2);
-      ctx.roundRect(x + width - 5, y + 9, 5, 10, 2);
+      ctx.ellipse(center + 2, y + 21, 10, 8, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillRect(x + 3, y + 23, 4, height - 23);
+      ctx.fillRect(x + width - 7, y + 23, 4, height - 23);
     } else {
-      // Cacto duplo alto (Alto)
-      const t1 = x + 6;
-      const t2 = x + 22;
-      ctx.beginPath();
-      ctx.roundRect(t1, y, 10, height, 4);
-      ctx.roundRect(x, y + 14, 8, 5, 2);
-      ctx.roundRect(x, y + 8, 5, 11, 2);
-
-      ctx.roundRect(t2, y + 8, 10, height - 8, 4);
-      ctx.roundRect(x + width - 8, y + 18, 8, 5, 2);
-      ctx.roundRect(x + width - 5, y + 12, 5, 11, 2);
+      ctx.roundRect(center - 8, y + 15, 16, 23, 5);
       ctx.fill();
+      ctx.fillRect(center - 8, y + 33, 5, height - 33);
+      ctx.fillRect(center + 3, y + 33, 5, height - 33);
+      ctx.fillRect(x + 4, y + 20, 6, 19);
+      ctx.fillRect(x + width - 10, y + 20, 6, 19);
+    }
+
+    // Boca em pétalas.
+    ctx.fillStyle = this.isNight ? '#dd6a86' : '#a82d4e';
+    for (let petal = 0; petal < 5; petal++) {
+      const angle = petal * Math.PI * 2 / 5 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.ellipse(center + Math.cos(angle) * 5, headY + Math.sin(angle) * 5,
+        type === 0 ? 5 : 7, 3.5, angle, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#210e21';
+    ctx.beginPath();
+    ctx.arc(center, headY, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawMindFlayer(ctx) {
+    const x = 480;
+    const y = 99;
+    ctx.fillStyle = '#1a0d25';
+    ctx.strokeStyle = '#1a0d25';
+    ctx.lineCap = 'round';
+    for (const direction of [-1, 1]) {
+      for (let leg = 0; leg < 4; leg++) {
+        const reach = 85 + leg * 22;
+        ctx.lineWidth = 10 - leg * 1.7;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 10 + leg * 7);
+        ctx.bezierCurveTo(x + direction * 48, y - 67 + leg * 14,
+          x + direction * reach, y - 62 + leg * 22,
+          x + direction * (reach + 33), 202);
+        ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 17, 26, 48, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(248, 200, 226, 0.5)';
+    for (let i = 0; i < 42; i++) {
+      const drift = (i * 113 + this.frameCount * (0.2 + i % 3 * 0.16)) % CANVAS_W;
+      const height = 10 + (i * 59 % 210);
+      ctx.fillRect(drift, height, 1 + i % 3, 1 + i % 2);
     }
   }
 
@@ -797,7 +833,7 @@ export class DinoSimulation {
     ctx.font = '700 18px "IBM Plex Mono", monospace';
     ctx.fillText(`${this.distanceMeters} m`, CANVAS_W / 2, 28);
     ctx.font = '600 11px "IBM Plex Mono", monospace';
-    ctx.fillText(`Recorde: ${this.bestDistance} m`, CANVAS_W / 2, 45);
+    ctx.fillText(`${this.isNight ? "Mundo Invertido" : "Hawkins"} · Recorde: ${this.bestDistance} m`, CANVAS_W / 2, 45);
 
     // Bloco direito: Ação Atual e Pontuação
     ctx.textAlign = 'right';

@@ -2,6 +2,7 @@
  * Controlador Principal da Interface (DOM + Loop de Animação + Visualizações em Tempo Real)
  */
 
+import { startMusic, stopMusic } from './music.js';
 import { LearningChart } from './chart.js';
 import { DinoSimulation } from './game.js';
 import {
@@ -472,6 +473,22 @@ buildQMatrix();
 buildQTable();
 syncSelectionStyles();
 chart.draw([]);
+
+const musicButton = document.getElementById('btn-music');
+musicButton.addEventListener('click', async () => {
+  const playing = musicButton.getAttribute('aria-pressed') === 'true';
+  musicButton.disabled = true;
+  try {
+    if (playing) stopMusic();
+    else await startMusic();
+    musicButton.setAttribute('aria-pressed', String(!playing));
+    musicButton.textContent = playing ? 'Ligar trilha' : 'Desligar trilha';
+  } catch {
+    musicButton.textContent = 'Tentar ligar trilha';
+  } finally {
+    musicButton.disabled = false;
+  }
+});
 
 // Eventos de Botões Principais
 els.btnPlayPause.addEventListener('click', () => {

@@ -3,7 +3,7 @@
  *
  * Espaço de Estados (24 estados discretos):
  *  - Distância (4): 0 = Muito Perto (0–80px), 1 = Perto (81–155px), 2 = Médio (156–245px), 3 = Longe (>245px)
- *  - Obstáculo (3): 0 = Baixo, 1 = Alto, 2 = Voador
+ *  - Obstáculo (3): 0 = Democão, 1 = Demogorgon, 2 = Demomorcego
  *  - Velocidade (2): 0 = Normal (< 7.8 px/f), 1 = Rápida (>= 7.8 px/f)
  *
  * Ações (2):
@@ -23,7 +23,7 @@ export const DIST_LABELS = [
   { label: 'Longe', range: '> 245 px' },
 ];
 
-export const OBS_LABELS = ['Baixo', 'Alto', 'Voador'];
+export const OBS_LABELS = ['Democão', 'Demogorgon', 'Demomorcego'];
 export const SPEED_LABELS = ['Normal', 'Rápida'];
 
 export const NUM_STATES = DIST_LABELS.length * OBS_LABELS.length * SPEED_LABELS.length;
