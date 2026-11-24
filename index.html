@@ -59,9 +59,9 @@
           <div class="meta-inline">
             <span>Algoritmo: Q-Learning Tabular</span>
             <span aria-hidden="true">·</span>
-            <span>Espaço: 16 Estados × 2 Ações</span>
+            <span>Espaço: 24 Estados × 2 Ações</span>
             <span aria-hidden="true">·</span>
-            <span>32 Valores Q</span>
+            <span>48 Valores Q</span>
           </div>
         </div>
 
@@ -328,7 +328,7 @@
           <p class="section-desc">
             Em vez de processar milhares de pixels da tela, o Q-Learning tabular agrupa as leituras
             contínuas do jogo em <strong>3 variáveis discretas</strong>. A combinação delas gera
-            exatamente <strong>16 estados possíveis</strong> (4 × 2 × 2). O destaque abaixo acompanha
+            exatamente <strong>24 estados possíveis</strong> (4 × 3 × 2). O destaque abaixo acompanha
             o estado exato detectado neste instante.
           </p>
         </div>
@@ -358,7 +358,7 @@
               <span class="dim-count">4 faixas</span>
             </div>
             <p class="dim-desc">
-              Medida em pixels da frente do dinossauro até a borda esquerda do próximo cacto.
+              Medida em pixels da frente do dinossauro até a borda esquerda do próximo obstáculo.
             </p>
             <ul class="bucket-list" id="buckets-distance">
               <li class="bucket-item" data-dist="0">
@@ -383,11 +383,11 @@
           <!-- Dimensão 2: Obstáculo -->
           <div class="panel dimension-card">
             <div class="dim-header">
-              <h3 class="dim-title">Variável 2: Porte do Obstáculo</h3>
-              <span class="dim-count">2 tipos</span>
+              <h3 class="dim-title">Variável 2: Tipo de Obstáculo</h3>
+              <span class="dim-count">3 tipos</span>
             </div>
             <p class="dim-desc">
-              Classifica a altura e largura do próximo obstáculo na pista.
+              Distingue cactos baixos, cactos altos e criaturas voadoras.
             </p>
             <ul class="bucket-list" id="buckets-obstacle">
               <li class="bucket-item" data-obs="0">
@@ -397,6 +397,10 @@
               <li class="bucket-item" data-obs="1">
                 <span class="bucket-name">Alto (Cacto Alto / Duplo)</span>
                 <span class="bucket-range tabular">Alt. 52 px · Larg. 38 px</span>
+              </li>
+              <li class="bucket-item" data-obs="2">
+                <span class="bucket-name">Voador</span>
+                <span class="bucket-range">Pode passar por baixo correndo</span>
               </li>
             </ul>
           </div>
@@ -435,11 +439,11 @@
           </p>
         </div>
 
-        <!-- Matriz Visual 4x4 (Cérebro do Agente) -->
+        <!-- Matriz Visual de Estados (Cérebro do Agente) -->
         <div class="panel matrix-panel">
           <div class="panel-header">
             <div class="panel-title-group">
-              <h3 class="panel-title">Mapa Cognitivo da Memória (16 Estados)</h3>
+              <h3 class="panel-title">Mapa Cognitivo da Memória (24 Estados)</h3>
               <span class="panel-meta">
                 Cada bloco exibe a ação vencedora e os valores Q(Correr) vs Q(Saltar) em tempo real
               </span>
@@ -489,6 +493,9 @@
                 </button>
                 <button type="button" class="seg-btn" data-filter-obs="1">
                   Alto
+                </button>
+                <button type="button" class="seg-btn" data-filter-obs="2">
+                  Voador
                 </button>
               </div>
             </div>
@@ -542,8 +549,8 @@
             <span class="cycle-step">Passo 1</span>
             <h3 class="cycle-title">Observar Estado (s)</h3>
             <p class="cycle-text">
-              Enquanto está no chão, o dinossauro lê a distância ao cacto, sua altura e a
-              velocidade atual, convertendo tudo em um dos 16 estados.
+              Enquanto está no chão, o dinossauro lê a distância ao obstáculo, seu tipo e a
+              velocidade atual, convertendo tudo em um dos 24 estados.
             </p>
           </div>
           <div class="panel cycle-card">

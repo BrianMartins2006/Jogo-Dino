@@ -1,9 +1,9 @@
 /**
  * Agente Q-Learning Tabular para o Jogo do Dinossauro
  *
- * Espaço de Estados (16 estados discretos):
+ * Espaço de Estados (24 estados discretos):
  *  - Distância (4): 0 = Muito Perto (0–80px), 1 = Perto (81–155px), 2 = Médio (156–245px), 3 = Longe (>245px)
- *  - Obstáculo (2): 0 = Baixo (Cacto simples), 1 = Alto (Cacto alto/duplo)
+ *  - Obstáculo (3): 0 = Baixo, 1 = Alto, 2 = Voador
  *  - Velocidade (2): 0 = Normal (< 7.8 px/f), 1 = Rápida (>= 7.8 px/f)
  *
  * Ações (2):
@@ -23,21 +23,21 @@ export const DIST_LABELS = [
   { label: 'Longe', range: '> 245 px' },
 ];
 
-export const OBS_LABELS = ['Baixo', 'Alto'];
+export const OBS_LABELS = ['Baixo', 'Alto', 'Voador'];
 export const SPEED_LABELS = ['Normal', 'Rápida'];
 
-export const NUM_STATES = 16;
+export const NUM_STATES = DIST_LABELS.length * OBS_LABELS.length * SPEED_LABELS.length;
 
 export function encodeState(distIndex, obsIndex, speedIndex) {
-  const row = speedIndex * 2 + obsIndex; // 0..3
-  return row * 4 + distIndex; // 0..15
+  const row = speedIndex * OBS_LABELS.length + obsIndex;
+  return row * 4 + distIndex;
 }
 
 export function decodeState(stateId) {
   const distIndex = stateId % 4;
   const row = Math.floor(stateId / 4);
-  const obsIndex = row % 2;
-  const speedIndex = Math.floor(row / 2);
+  const obsIndex = row % OBS_LABELS.length;
+  const speedIndex = Math.floor(row / OBS_LABELS.length);
 
   return {
     id: stateId,
@@ -59,7 +59,7 @@ export function discretizeObservation(distancePx, obsType, speedPxPerFrame) {
   else if (distancePx <= 155) distIndex = 1;
   else if (distancePx <= 245) distIndex = 2;
 
-  const obsIndex = obsType === 1 ? 1 : 0;
+  const obsIndex = obsType;
   const speedIndex = speedPxPerFrame >= 7.8 ? 1 : 0;
 
   return {

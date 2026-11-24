@@ -1333,3 +1333,30 @@ input[type='range'] {
     scroll-behavior: auto !important;
   }
 }
+
+:root {
+  --bg-canvas: #fcf1ef;
+  --bg-subtle: #f8e8e9;
+  --border-hairline: #ead6dc;
+  --accent-primary: #a82042;
+  --accent-primary-hover: #831632;
+  --accent-soft: #fce8ec;
+  --accent-ring: rgba(168, 32, 66, 0.28);
+}
+
+:root[data-game-theme="dark"] {
+  --bg-canvas: #1c1426;
+  --bg-surface: #2a1d34;
+  --bg-subtle: #34233f;
+  --bg-hover: #3e2a49;
+  --border-hairline: #523659;
+  --border-strong: #745278;
+  --ink-primary: #fff0f5;
+  --ink-secondary: #ecd2e4;
+  --ink-muted: #d6bbd2;
+  --accent-soft: #4c2340;
+}
+
+#dino-canvas {
+  border-radius: var(--radius-md);
+}

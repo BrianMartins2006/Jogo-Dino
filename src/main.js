@@ -113,8 +113,8 @@ function buildQMatrix() {
     container.appendChild(colHeader);
   });
 
-  for (let spd = 0; spd < 2; spd++) {
-    for (let obs = 0; obs < 2; obs++) {
+  for (let spd = 0; spd < SPEED_LABELS.length; spd++) {
+    for (let obs = 0; obs < OBS_LABELS.length; obs++) {
       const rowHeader = document.createElement('div');
       rowHeader.className = 'matrix-row-header';
       rowHeader.innerHTML = `
@@ -252,7 +252,7 @@ function updateMemoryViews(activeStateId) {
     const preferJump = diff > 1e-4;
     const confPct = Math.min(100, (Math.abs(diff) / 18) * 100);
 
-    // 1. Atualizar Célula na Matriz 4x4
+    // 1. Atualizar Célula na Matriz de estados
     const mc = matrixCells[stateId];
     mc.valRun.textContent = qRun.toFixed(2);
     mc.valJump.textContent = qJump.toFixed(2);
@@ -431,6 +431,7 @@ function updateStateDimensionsUI(snapshot) {
 }
 
 function handleSimUpdate(snapshot) {
+  document.documentElement.dataset.gameTheme = snapshot.night ? 'dark' : 'light';
   els.kpiEpisode.textContent = String(snapshot.episode);
   els.kpiSteps.textContent = `${snapshot.decisionCount} decisões tomadas`;
   els.kpiScore.textContent = `${snapshot.score} / ${snapshot.bestScore}`;

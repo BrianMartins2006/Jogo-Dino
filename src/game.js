@@ -22,6 +22,8 @@ const GRAVITY = 0.72;
 const JUMP_VELOCITY = -13.2;
 const BASE_SPEED = 6.2;
 const MAX_SPEED = 10.2;
+const PIXELS_PER_METER = 10;
+const THEME_INTERVAL_METERS = 700;
 const MAX_EPISODE_FRAMES = 2200;
 
 export class DinoSimulation {
@@ -39,6 +41,7 @@ export class DinoSimulation {
 
     this.episode = 1;
     this.bestScore = 0;
+    this.bestDistance = 0;
     this.scoresHistory = [];
     this.decisionCount = 0;
 
@@ -69,6 +72,7 @@ export class DinoSimulation {
     this.agent.reset();
     this.episode = 1;
     this.bestScore = 0;
+    this.bestDistance = 0;
     this.scoresHistory = [];
     this.decisionCount = 0;
     this.lastReward = 0;
@@ -94,6 +98,7 @@ export class DinoSimulation {
 
     this.speed = BASE_SPEED;
     this.score = 0;
+    this.distancePixels = 0;
     this.frameCount = 0;
     this.pendingTransition = null;
     this.manualJumpQueued = false;
@@ -123,7 +128,18 @@ export class DinoSimulation {
     this.onUpdate(this.getSnapshot());
   }
 
+  get distanceMeters() {
+    return Math.floor(this.distancePixels / PIXELS_PER_METER);
+  }
+
+  get isNight() {
+    return Math.floor(this.distanceMeters / THEME_INTERVAL_METERS) % 2 === 1;
+  }
+
   createObstacle(xPos) {
+    if (this.distanceMeters >= 100 && Math.random() < 0.32) {
+      return { x: xPos, y: GROUND_Y - 66, width: 36, height: 18, type: 2, passed: false };
+    }
     const type = Math.random() < 0.52 ? 0 : 1; // 0 = Baixo, 1 = Alto
     if (type === 0) {
       return {
@@ -206,11 +222,14 @@ export class DinoSimulation {
     }
 
     this.frameCount += 1;
+    this.distancePixels += this.speed;
+    this.bestDistance = Math.max(this.bestDistance, this.distanceMeters);
+    const frameSpeed = this.speed;
     let updatedQ = false;
 
     // 1. Movimentar cenário e obstáculos
     this.obstacles.forEach((obs) => {
-      obs.x -= this.speed;
+      obs.x -= frameSpeed;
       if (!obs.passed && obs.x + obs.width < this.dino.x) {
         obs.passed = true;
         this.score += 1;
@@ -501,6 +520,7 @@ export class DinoSimulation {
     return {
       episode: this.episode,
       score: this.score,
+      night: this.isNight,
       bestScore: this.bestScore,
       avg10,
       decisionCount: this.decisionCount,
@@ -522,11 +542,32 @@ export class DinoSimulation {
     const h = CANVAS_H;
 
     // 1. Céu limpo
-    ctx.fillStyle = '#fbfcfe';
+    const night = this.isNight;
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, night ? '#110b24' : '#fff0e5');
+    sky.addColorStop(1, night ? '#650e33' : '#df8695');
+    ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
+    ctx.fillStyle = night ? '#fc5270' : '#ffdbc1';
+    ctx.beginPath();
+    ctx.arc(590, 108, 34, 0, 2 * Math.PI);
+    ctx.fill();
+
+    ctx.fillStyle = night ? '#22132e' : '#794358';
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y);
+    for (let x = 0; x <= w; x += 12) {
+      ctx.lineTo(x, 196 - Math.abs(Math.sin(x * 0.055)) * 34);
+    }
+    ctx.lineTo(w, GROUND_Y);
+    ctx.fill();
+
+    ctx.fillStyle = night ? '#150b20' : '#efd0cb';
+    ctx.fillRect(0, GROUND_Y, w, h - GROUND_Y);
+
     // Nuvens discretas
-    ctx.fillStyle = '#e2e8f0';
+    ctx.fillStyle = night ? '#412344' : '#f7c6c6';
     this.clouds.forEach((c) => {
       ctx.beginPath();
       ctx.roundRect(c.x, c.y, c.w, 12, 6);
@@ -535,14 +576,14 @@ export class DinoSimulation {
     });
 
     // 2. Linha do horizonte e textura do solo
-    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeStyle = night ? '#ee5474' : '#68364b';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, GROUND_Y);
     ctx.lineTo(w, GROUND_Y);
     ctx.stroke();
 
-    ctx.fillStyle = '#cbd5e1';
+    ctx.fillStyle = night ? '#ac4362' : '#b77b88';
     this.groundDots.forEach((d) => {
       ctx.fillRect(d.x, GROUND_Y + d.yOffset, d.w, 2);
     });
@@ -619,6 +660,23 @@ export class DinoSimulation {
       ctx.restore();
     }
 
+    if (type === 2) {
+      const wingY = y + 8 + Math.sin(this.frameCount * 0.28) * 13;
+      ctx.fillStyle = this.isNight ? '#f274a6' : '#47213e';
+      ctx.beginPath();
+      ctx.moveTo(x, y + 6);
+      ctx.lineTo(x + 13, y + 2);
+      ctx.lineTo(x + 21, y + 8);
+      ctx.lineTo(x + 34, wingY);
+      ctx.lineTo(x + 30, y + 15);
+      ctx.lineTo(x + 14, y + 16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = this.isNight ? '#36102e' : '#ffeabf';
+      ctx.fillRect(x + 10, y + 6, 3, 3);
+      return;
+    }
+
     ctx.fillStyle = type === 0 ? '#0f766e' : '#065f46';
 
     if (type === 0) {
@@ -650,8 +708,8 @@ export class DinoSimulation {
 
   drawDino(ctx) {
     const { x, y, onGround, crashed, legPhase } = this.dino;
-    const bodyColor = crashed ? '#dc2626' : '#0f172a';
-    const accentColor = crashed ? '#fee2e2' : '#ffffff';
+    const bodyColor = crashed ? '#dc2626' : this.isNight ? '#ffd5e4' : '#231326';
+    const accentColor = crashed ? '#fee2e2' : this.isNight ? '#40152f' : '#ffffff';
 
     ctx.fillStyle = bodyColor;
 
@@ -723,25 +781,32 @@ export class DinoSimulation {
     ctx.font = '600 12px "IBM Plex Mono", monospace';
     ctx.textAlign = 'left';
     const stateText = `${state.code} · ${state.summary}`;
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = this.isNight ? '#ffe8f1' : '#471832';
     ctx.fillText(stateText, 16, 24);
 
     ctx.font = '500 11.5px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = this.isNight ? '#f6c4db' : '#62354c';
     ctx.fillText(
       `Velocidade: ${this.speed.toFixed(1)} px/frame · Obstáculo: ${state.obsLabel}`,
       16,
       42
     );
 
+    ctx.fillStyle = this.isNight ? '#ffe8f1' : '#471832';
+    ctx.textAlign = 'center';
+    ctx.font = '700 18px "IBM Plex Mono", monospace';
+    ctx.fillText(`${this.distanceMeters} m`, CANVAS_W / 2, 28);
+    ctx.font = '600 11px "IBM Plex Mono", monospace';
+    ctx.fillText(`Recorde: ${this.bestDistance} m`, CANVAS_W / 2, 45);
+
     // Bloco direito: Ação Atual e Pontuação
     ctx.textAlign = 'right';
     ctx.font = '700 12.5px "IBM Plex Mono", monospace';
-    ctx.fillStyle = isJump ? '#d97706' : '#0284c7';
+    ctx.fillStyle = isJump ? (this.isNight ? '#ffc679' : '#893a15') : (this.isNight ? '#b9ecff' : '#184d6e');
     ctx.fillText(`AÇÃO: ${isJump ? '▲ ' : '■ '}${actionName}`, CANVAS_W - 16, 24);
 
     ctx.font = '500 11.5px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = this.isNight ? '#f6c4db' : '#62354c';
     ctx.fillText(`${this.lastDecisionMode} · Obstáculos: ${this.score}`, CANVAS_W - 16, 42);
   }
 }
